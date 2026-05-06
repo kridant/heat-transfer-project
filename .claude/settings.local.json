@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m app.train.train_surrogate --csv Data_Raw/solar_dryer_ml.csv --out models/surrogate-v1.joblib)",
+      "Bash(python -m uvicorn app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(curl.exe -sS -X POST http://127.0.0.1:8000/v1/simulate -H \"content-type: application/json\" -d \"{\\\\\"heat_flux\\\\\":700,\\\\\"porosity\\\\\":0.7,\\\\\"ambient_c\\\\\":28,\\\\\"wind_mps\\\\\":3,\\\\\"crop\\\\\":\\\\\"tomato\\\\\"}\")",
+      "Bash(python -m pytest tests/test_physics.py -q)",
+      "Bash(python -m pytest tests/ -q)"
+    ]
+  }
+}

@@ -5,8 +5,8 @@ from app.config import settings
 from app.db import crud
 from app.db.session import get_db
 from app.schemas import SimulateRequest, SimulateResponse, TrayDrying, TrayTemps
-from app.services.physics import lewis_drying_time, thermal_efficiency, wind_correction
-from app.api.routes_predict import _predict_temps_k
+from app.services.physics import lewis_drying_time, thermal_efficiency
+from app.api.routes_predict import _apply_physics, _predict_temps_k
 
 router = APIRouter(prefix="/v1", tags=["simulate"])
 
@@ -14,10 +14,7 @@ router = APIRouter(prefix="/v1", tags=["simulate"])
 @router.post("/simulate", response_model=SimulateResponse)
 def simulate(req: SimulateRequest, db: Session = Depends(get_db)) -> SimulateResponse:
     temps_k, was_cached = _predict_temps_k(req.heat_flux, req.porosity)
-    temps_c = tuple(t - 273.15 for t in temps_k)
-
-    wind = wind_correction(t_cover_c=temps_c[0], ambient_c=req.ambient_c, wind_mps=req.wind_mps)
-    corrected = tuple(t - wind.delta_t_k for t in temps_c)
+    corrected, applied_dt_k = _apply_physics(temps_k, req.ambient_c, req.wind_mps, req.heat_flux)
 
     trays = []
     for i, t_c in enumerate(corrected, start=1):
@@ -44,7 +41,7 @@ def simulate(req: SimulateRequest, db: Session = Depends(get_db)) -> SimulateRes
 
     return SimulateResponse(
         temps=TrayTemps(t1_c=corrected[0], t2_c=corrected[1], t3_c=corrected[2], t4_c=corrected[3]),
-        wind_correction_k=wind.delta_t_k,
+        wind_correction_k=applied_dt_k,
         trays=trays,
         thermal_efficiency=eff,
         model_version=settings.model_version,
